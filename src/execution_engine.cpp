@@ -1,5 +1,7 @@
 #include "execution_engine.h"
 
+
+
 u4 ExecutionEngine::execute(Frame* frame) {
 
     u1* byte_code = frame->method->code->code;
@@ -92,6 +94,26 @@ u4 ExecutionEngine::execute(Frame* frame) {
                     frame->program_ctr += 2;
                 }
                 break;
+
+            case ldc: {
+                    u1 idx = byte_code[frame->program_ctr+1];
+                    Variable const_ = load_constant(frame->class_, idx);
+                    frame->stack_ptr++;
+                    frame->stack[frame->stack_ptr] = const_;
+                    frame->program_ctr += 2;
+                }
+                break;
+            case invokestatic: {
+
+                u1 idx_1 = byte_code[frame->program_ctr+1];
+                u1 idx_2 = byte_code[frame->program_ctr+2];
+
+                u2 idx = ((idx_1 << 8) | idx_2);
+
+                frame->program_ctr += 3;
+
+                }
+                break;
             case  return_:
                 std::cout << "Top of stack " << frame->stack[frame->stack_ptr+1].int_value << "\n";
                 return 0;
@@ -102,4 +124,28 @@ u4 ExecutionEngine::execute(Frame* frame) {
     }
 
     return 0;
+}
+
+
+Variable ExecutionEngine::load_constant(JavaClass* class_, u1 index) {
+    Variable v {};
+    v.ptrValue = NULL;
+
+    char* elem = (char*)class_->constant_pool[index];
+
+    switch (elem[0]) {
+        case CP_Type::CONSTANT_Integer: {
+            u1 first = elem[1];
+            u1 second = elem[2];
+            u1 third = elem[3];
+            u1 fourth = elem[4];
+            v.int_value = (((u4) first) << 24) | (((u4) second) << 16) | (((u4) third) << 8) | (((u4) fourth));
+        }
+        break;
+    
+        default:
+            break;
+    }
+
+    return v;
 }

@@ -16,14 +16,30 @@ static const char* CP_Name[] = {
     "NameAndType"};
 
 
-static std::map<u1, std::string> opcode{};
+
+u4 JavaClass::read_u4(char* ptr) {
+    return ((u4)(((u1)ptr[0])) << 24)
+        | ((u4)(((u1)ptr[1])) << 16)
+        | ((u4)(((u1)ptr[2])) << 8)
+        | ((u4)(((u1)ptr[3])));
+}
+
+u2 JavaClass::read_u2(char* ptr) {
+    return ((u2)(((u1)ptr[0])) << 8)
+        | ((u2)(((u1)ptr[1])));
+}
+
+u1 JavaClass::read_u1(char* ptr) {
+    return (u1)ptr[0];
+}
 
 
-bool JavaClass::parse_class(ClassReader& reader) {
+bool JavaClass::parse_class() {
 
-    opcode.insert({0x2a, "aload_0"});
+    char* p = (char *)(&m_bytecode[0]);
 
-    magic = reader.read_u4();
+    magic = read_u4(p);
+    p += 4;
 
     if (magic != 0xCAFEBABE) {
         std::cerr << "Invalid magic number\n";
@@ -31,78 +47,81 @@ bool JavaClass::parse_class(ClassReader& reader) {
     }
 
     // Parse version
-    minor_version = reader.read_u2();
-    major_version = reader.read_u2();
-    
+    minor_version = read_u2(p);
+    p += 2;
+
+    major_version = read_u2(p);
+    p += 2;
+
     // Size of constant pool
-    constant_pool_count = reader.read_u2();
+    constant_pool_count = read_u2(p);
+    p += 2;
 
     std::cout << "Size of constant pool " << constant_pool_count-1 << "\n";
 
     // Parse constant pool if available
     if (constant_pool_count > 0) {
-        parse_constant_pool(reader);
+        parse_constant_pool(p);
     }
 
-    access_flags = reader.read_u2();
+    access_flags = read_u2(p);
+    p += 2;
 
+    this_class = read_u2(p);
+    p += 2;
 
-    this_class = reader.read_u2();
-    super_class = reader.read_u2();
+    super_class = read_u2(p);
+    p += 2;
 
-    interfaces_count = reader.read_u2();
-
+    interfaces_count = read_u2(p);
+    p += 2;
 
     // Parse interfaces if available
     if (interfaces_count > 0) {
-        parse_interfaces(reader);
+        parse_interfaces(p);
     }
 
-    fields_count = reader.read_u2();
+    fields_count = read_u2(p);
+    p += 2;
 
     if (fields_count > 0) {
-        parse_fields(reader);
+        parse_fields(p);
     }
 
-    methods_count = reader.read_u2();
+    methods_count = read_u2(p);
+    p += 2;
 
 
     if (methods_count > 0) {
-        parse_methods(reader);
+        parse_methods(p);
     }
 
-    attributes_count = reader.read_u2();
+    attributes_count = read_u2(p);
+    p += 2;
 
     if (attributes_count > 0) {
-        parse_attributes(reader);
+        parse_attributes(p);
     }
 
     return true;
 }
 
-bool JavaClass::parse_constant_pool(ClassReader& reader) {
+bool JavaClass::parse_constant_pool(char*& p) {
 
     // Reserve memory for constant_pool_count-1 many elements in pool
-    constant_pool = new cp_info*[constant_pool_count-1];
+    constant_pool.resize(constant_pool_count);
 
-    if (constant_pool == NULL) {
+    if (&constant_pool[0] == NULL) {
         std::cerr << "Could not reserve memory for constant pool\n";
         return false;
     }
 
-    char* p = reader.get_handle();
-
     for (int i = 1; i < constant_pool_count; i++) {
         constant_pool[i] = (cp_info*)p;
-
-        // std::cout << "CP " << CP_Name[constant_pool[i]->tag] << "\n";
-
+p;
         uint32_t size = get_constant_pool_elem_size(p);
         p += size;
     }
-
-    // IMPORTANT: set handle to read in information after constant pool.
-    reader.set_handle(p);
 
     return true;
 }
@@ -147,37 +166,49 @@ uint32_t JavaClass::get_constant_pool_elem_size(char* ptr) {
     }
 }
 
-bool JavaClass::parse_interfaces(ClassReader& reader) {
-    interfaces = new u2[interfaces_count];
+bool JavaClass::parse_interfaces(char*& p) {
+    interfaces.reserve(interfaces_count);
 
     for (int i = 0; i < interfaces_count; i++) {
-        interfaces[i] = reader.read_u2();
+        interfaces[i] = read_u2(p);
     }
 
     return true;
 }
 
-bool JavaClass::parse_fields(ClassReader& reader) {
-    fields = new field_info[fields_count];
+bool JavaClass::parse_fields(char*& p) {
+
+    fields.reserve(fields_count);
 
 
     for (int i = 0; i < fields_count; i++) {
-        char* ptr = reader.get_handle();
-        fields[i] = *(field_info*)(ptr);
-        fields[i].access_flags = reader.read_u2();
-        fields[i].name_index = reader.read_u2();
-        fields[i].descriptor_index = reader.read_u2();
-        fields[i].attributes_count = reader.read_u2();
+        fields[i].base = (field_info*)p;
 
+        fields[i].access_flags = read_u2(p);
+        p += 2;
+
+        fields[i].name_index = read_u2(p);
+        p += 2;
+        
+        fields[i].descriptor_index = read_u2(p);
+        p += 2;
+        
+        fields[i].attributes_count = read_u2(p);
+        p += 2;
 
         if (fields[i].attributes_count > 0) {
             for (int j = 0; j < fields[j].attributes_count; j++) {
                 
                 
-                u2 name_index = reader.read_u2();
-                u4 length = reader.read_u4();
+                u2 name_index = read_u2(p);
+                p += 2;
 
-                reader.forward(length);
+                std::cout << "Field attribute index " << name_index << "\n";
+
+                u4 length = read_u4(p);
+                p += 4;
+
+                p += length;
             }
         }
     }
@@ -185,41 +216,93 @@ bool JavaClass::parse_fields(ClassReader& reader) {
     return true;
 }
 
-bool JavaClass::parse_methods(ClassReader& reader) {
+bool JavaClass::parse_methods(char*& p) {
 
-    methods = new method_info_extended[methods_count];
+    methods.reserve(methods_count);
 
     for (int i = 0; i < methods_count; i++) {
-        char* ptr = reader.get_handle();
-        methods[i].base = new method_info();
-        methods[i].base = (method_info*)(ptr);
-        methods[i].base->access_flags = reader.read_u2();
-        methods[i].base->name_index = reader.read_u2();
-        methods[i].base->descriptor_index = reader.read_u2();
-        methods[i].base->attributes_count = reader.read_u2();
+        methods[i].base = (method_info*)(p);
+
+        methods[i].access_flags = read_u2(p);
+        p += 2;
+
+        methods[i].name_index = read_u2(p);
+        p += 2;
+
+        methods[i].descriptor_index = read_u2(p);
+        p += 2;
+
+        methods[i].attributes_count = read_u2(p);
+        p += 2;
 
         std::string s;
-        string_from_constant_pool(methods[i].base->name_index, s);
+        string_from_constant_pool(methods[i].name_index, s);
 
         std::cout << "Method name " << s << "\n";
 
-        if (methods[i].base->attributes_count > 0) {
+        if (methods[i].attributes_count > 0) {
 
             // Skip attributes
-            char* ptr = reader.get_handle();
-            for (int j = 0; j < methods[i].base->attributes_count; j++) {
-                u2 name_index = (((u2)ptr[0]) << 8 ) | ((u2)(ptr[1]));
-                ptr += 2;
-                u4 length = (((u4)ptr[0]) << 24) | (((u4)(ptr[1])) << 16) | (((u4)(ptr[2])) << 8) | (((u4)(ptr[3])));
-                ptr += 4;
-                ptr += length;
+            for (int j = 0; j < methods[i].attributes_count; j++) {
+                u2 name_index = read_u2(p);
+                p += 2;
+                u4 length = read_u4(p);
+                p += 4;
+                p += length;
             }
 
             methods[i].code = new code_attribute();
             // Parse code attributes
-            parse_method_code_attribute(reader, methods[i].base->attributes_count, i, methods[i].code);
+            parse_method_code_attribute(i, methods[i].code);
+        }
+    }
 
-            reader.set_handle(ptr);
+    return true;
+}
+
+bool JavaClass::parse_method_code_attribute(int i, code_attribute* attr) {
+    if (i > methods_count) {
+        return false;
+    }
+
+    char* p = (char*)(methods[i].base);
+    p += 6;
+    u4 n_attr = read_u2(p);
+    p += 2;
+
+
+    if (n_attr > 0) {
+        // Skip attributes
+        for (int i = 0; i < n_attr; i++) {
+            u2 attribute_name_index = read_u2(p);
+            p += 2;
+
+            std::string name;
+            string_from_constant_pool(attribute_name_index, name);
+
+            // name.compare("Code") = 0 iff name == "Code"
+            if (!name.compare("Code")) {
+                attr->attribute_name_index = attribute_name_index;
+                attr->attribute_length = read_u4(p);
+                p += 4;
+                attr->max_stack = read_u2(p);
+                p += 2;
+                attr->max_locals = read_u2(p);
+                p += 2;
+                u4 len = attr->code_length = read_u4(p);
+                p += 4;
+                // Parse code
+                if (methods[i].code->code_length > 0) {
+                    attr->code = new u1[len];
+
+                    for (int j = 0; j < len; j++) {
+                        attr->code[j] = read_u1(p);
+                        p += 1;
+                    } 
+                } else {
+                    attr->code = NULL;
+                }
+            }
         }
     }
 
@@ -227,7 +310,7 @@ bool JavaClass::parse_methods(ClassReader& reader) {
 }
 
 
-bool JavaClass::parse_attributes(ClassReader& reader) {
+bool JavaClass::parse_attributes(char* &ptr) {
     return true;
 }
 
@@ -249,48 +332,13 @@ bool JavaClass::string_from_constant_pool(int idx, std::string& val) {
 }
 
 
-bool JavaClass::parse_method_code_attribute(ClassReader& reader, int n_attr, int i, code_attribute* attr) {
-    if (i > methods_count) {
-        return false;
-    }
 
-
-    if (n_attr > 0) {
-        // Skip attributes
-        for (int i = 0; i < n_attr; i++) {
-            u2 attribute_name_index = reader.read_u2();
-
-            std::string name;
-            string_from_constant_pool(attribute_name_index, name);
-
-            // name.compare("Code") = 0 iff name == "Code"
-            if (!name.compare("Code")) {
-                attr->attribute_name_index = attribute_name_index;
-                attr->attribute_length = reader.read_u4();
-                attr->max_stack = reader.read_u2();
-                attr->max_locals = reader.read_u2();
-                int len = attr->code_length = reader.read_u4();
-
-                // Parse code
-                if (methods[i].code->code_length > 0) {
-                    attr->code = new u1[attr->code_length];
-
-                    for (int j = 0; j < len; j++) {
-                        attr->code[j] = reader.read_u1();
-                    } 
-                } else {
-                    attr->code = NULL;
-                }
-            }
-        }
-    }
-}
 
 int JavaClass::get_method_index(std::string name, std::string descriptor) {
     for (int i = 0; i < methods_count; i++) {
         method_info_extended m = methods[i];
-        u2 name_index = m.base->name_index;
-        u2 descr_index = m.base->descriptor_index;
+        u2 name_index = m.name_index;
+        u2 descr_index = m.descriptor_index;
 
         std::string n;
         std::string d;

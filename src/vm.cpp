@@ -31,5 +31,7 @@ int main(int argc, char** argv) {
     ExecutionEngine engine{};
     engine.execute(&frame);
 
+    delete[] frame.stack;
+
     return 0;
 }

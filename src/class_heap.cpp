@@ -8,10 +8,10 @@ ClassHeap::~ClassHeap() {
 }
 
 void ClassHeap::add_class(std::string path) {
-    ClassReader reader{path};
+    ClassReader reader {path};
 
-    JavaClass* class_ = new JavaClass();
-    bool c_parse = class_->parse_class(reader); 
+    JavaClass* class_ = new JavaClass(reader.get_bytecode());
+    bool c_parse = class_->parse_class(); 
 
     if (!c_parse) {
         std::cerr << "Could not parse class file " << path << "\n";

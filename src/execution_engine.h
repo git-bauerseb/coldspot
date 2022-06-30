@@ -31,6 +31,10 @@ enum Opcode {
 
     bipush = 0x10,
 
+    ldc = 0x12,
+
+    invokestatic = 0xb8,
+
     return_ = 0xb1
 };
 
@@ -43,6 +47,11 @@ class ExecutionEngine {
         u4 execute(Frame* frame);
 
     private:
+        /*
+            Loads a constant from the constant_pool of the respective
+            class file
+        */
+        Variable load_constant(JavaClass* class_, u1 index);
 };
 
 #endif

@@ -2,6 +2,8 @@
 #define CLASS_FILE_H
 
 #include <map>
+#include <vector>
+#include <algorithm>
 
 #include "definitions.h"
 #include "class_reader.h"
@@ -140,6 +142,10 @@ struct field_info {
     attribute_info* attributes;
 };
 
+struct field_info_extended : public field_info {
+    field_info* base;
+};
+
 
 /*
     METHOD
@@ -147,14 +153,6 @@ struct field_info {
 /*
     Represents a method in a class
 */
-struct method_info {
-    u2 access_flags;
-    u2 name_index;
-    u2 descriptor_index;
-    u2 attributes_count;
-    attribute_info* attributes;
-};
-
 struct exception_table {
     u2 start_pc;
     u2 end_pc;
@@ -175,7 +173,15 @@ struct code_attribute {
     attribute_info* attributes;
 };
 
-struct method_info_extended {
+struct method_info {
+    u2 access_flags;
+    u2 name_index;
+    u2 descriptor_index;
+    u2 attributes_count;
+    attribute_info* attributes;
+};
+
+struct method_info_extended : public method_info{
     method_info* base;
     code_attribute* code;
 };
@@ -197,7 +203,7 @@ struct JavaClassFileFormat {
     u2 constant_pool_count;
     
     // constant_pool_count - 1 many constant pool elements
-    cp_info** constant_pool;
+    std::vector<cp_info*> constant_pool;
 
     // Maksk of flags used to denote access permissions
     u2 access_flags;
@@ -210,16 +216,16 @@ struct JavaClassFileFormat {
 
     u2 interfaces_count;
 
-    u2* interfaces;
+    std::vector<u2> interfaces;
 
     u2 fields_count;
 
-    field_info* fields;
+    std::vector<field_info_extended> fields;
 
     u2 methods_count;
 
     // Extension used because code needs to be present in the method
-    method_info_extended* methods;
+    std::vector<method_info_extended> methods;
 
     u2 attributes_count;
 
@@ -230,36 +236,38 @@ struct JavaClassFileFormat {
 class JavaClass : public JavaClassFileFormat {
 
     public:
+        JavaClass(std::vector<u1>& bytecode) : m_bytecode{bytecode} {}
+
         ~JavaClass() {
-            
-            if (fields) {
-                delete[] fields;
+            for (int i = 0; i < methods_count; i++) {
+                delete[] methods[i].code->code;
+                delete methods[i].code;
             }
-
-            if (methods) {
-                delete[] methods;
-            }
-
-            if (constant_pool) {
-                delete[] constant_pool;
-            }
-            
         }
-        bool parse_class(ClassReader& reader);
+
+        bool parse_class();
         int get_method_index(std::string name, std::string descriptor);
 
     private:
-        bool parse_constant_pool(ClassReader& reader);
-        bool parse_interfaces(ClassReader& reader);
-        bool parse_fields(ClassReader& reader);
-        bool parse_methods(ClassReader& reader);
-        bool parse_attributes(ClassReader& reader);
+        // Methods
+        u4 read_u4(char* ptr);
+        u2 read_u2(char* ptr);
+        u1 read_u1(char* ptr);
 
-        bool parse_method_code_attribute(ClassReader& reader, int n_attr, int i, code_attribute* attr);
+        bool parse_constant_pool(char* &ptr);
+        bool parse_interfaces(char* &ptr);
+        bool parse_fields(char* &ptr);
+        bool parse_methods(char* &ptr);
+        bool parse_attributes(char* &ptr);
+
+        bool parse_method_code_attribute(int i, code_attribute* attr);
 
         uint32_t get_constant_pool_elem_size(char* ptr);
 
         bool string_from_constant_pool(int idx, std::string& val);
+
+        // Fields
+        std::vector<u1> m_bytecode;
 
 };
 
