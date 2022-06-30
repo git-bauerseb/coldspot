@@ -1,6 +1,16 @@
 #include "execution_engine.h"
 
+u2 ExecutionEngine::get_u2(char* ptr) {
+    return (u2)((u1)(ptr)[0]<< 8 & 0x0000FF00 
+    | (u1)(ptr)[1]);
+}
 
+u4 ExecutionEngine::get_u4(char* ptr) {
+    return (u4)( (u4)((u1)(ptr)[0])<<24 & 0xFF000000 
+    | (u4)((u1)(ptr)[1])<<16 & 0x00FF0000
+    | (u4)((u1)(ptr)[2])<<8 & 0x0000FF00
+    | (u4)((u1)(ptr)[3]) & 0x000000FF);
+}
 
 u4 ExecutionEngine::execute(Frame* frame) {
 
@@ -110,8 +120,15 @@ u4 ExecutionEngine::execute(Frame* frame) {
 
                 u2 idx = ((idx_1 << 8) | idx_2);
 
+                execute_static_method(frame, idx);
+
                 frame->program_ctr += 3;
 
+                }
+                break;
+
+            case ireturn: {
+                    return frame->stack[frame->stack_ptr].int_value;
                 }
                 break;
             case  return_:
@@ -148,4 +165,100 @@ Variable ExecutionEngine::load_constant(JavaClass* class_, u1 index) {
     }
 
     return v;
+}
+
+void ExecutionEngine::execute_static_method(Frame* current, u2 idx) {
+    JavaClass* c_class = current->class_;
+    char* pool_ptr = (char*)c_class->constant_pool[idx];
+
+    CONSTANT_Methodref_info* m_ref = (CONSTANT_Methodref_info*)pool_ptr;
+
+    if (pool_ptr[0] != CP_Type::CONSTANT_Methodref) {
+        std::cout << "Element in constant pool is not of type CONSTANT_Methodref for static invocation\n";
+        std::exit(1);
+    }
+
+    u2 class_idx = get_u2(&pool_ptr[1]);
+    u2 name_idx = get_u2(&pool_ptr[3]);
+
+    // Get class
+    pool_ptr = (char*)c_class->constant_pool[class_idx];
+
+    if (pool_ptr[0] != CP_Type::CONSTANT_Class) {
+        std::cout << "Element in constant pool is not of type CONSTANT_Class\n";
+        std::exit(1);
+    }
+
+    // Get class name
+    u2 class_name_idx = get_u2(&pool_ptr[1]);
+
+    std::string class_name;
+    c_class->string_from_constant_pool(class_name_idx, class_name);
+    // std::cout << class_name << "\n";
+
+    // Get NameAndType
+    pool_ptr = (char*)c_class->constant_pool[name_idx];
+
+    if (pool_ptr[0] != CP_Type::CONSTANT_NameAndType) {
+        std::cout << "Element in constant pool is not of type CONSTANT_NameAndType\n";
+        std::exit(1);
+    }
+
+    name_idx = get_u2(&pool_ptr[1]);
+    u2 descr_idx = get_u2(&pool_ptr[3]);
+
+    std::string m_name, m_descr;
+    c_class->string_from_constant_pool(name_idx, m_name);
+    c_class->string_from_constant_pool(descr_idx, m_descr);
+
+    u2 parameters = get_method_parameter(m_descr);
+    bool returns = is_returning(m_descr);
+
+    // Virtual class in which the called method resides
+    JavaClass* v_class = m_class_heap->get_class(class_name);
+
+    Frame* frame = new Frame();
+    frame->class_ = v_class;
+    frame->stack = new Variable[20];
+
+    u2 idx_ = v_class->get_method_index(m_name, m_descr);
+    frame->method = &v_class->methods[idx_];
+
+    // Reserve space for locals + arguments
+    u2 reserve = v_class->methods[idx_].code->max_locals + parameters;
+    frame->stack_ptr = reserve;
+
+    // Push arguments onto stack
+    for (int i = 0; i < parameters; i++) {
+        frame->stack[i] = current->stack[current->stack_ptr-i];
+    }
+
+    u4 ret_value = this->execute(frame);
+
+    delete[] frame->stack;
+    delete[] frame;
+
+    if (ret_value) {
+        current->stack[current->stack_ptr].int_value = ret_value;
+    }
+}
+
+u2 ExecutionEngine::get_method_parameter(std::string& description) {
+    u2 i = 1;
+
+    while (description[i] != ')') {
+        i++;
+    }
+
+    return i-1;
+}
+
+
+bool ExecutionEngine::is_returning(std::string& description) {
+    int i = 0;
+
+    // Skip parameters
+    while (description[i] != ')') {i++;}
+
+    return description[i] != 'V'; 
 }

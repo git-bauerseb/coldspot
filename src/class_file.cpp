@@ -18,14 +18,14 @@ static const char* CP_Name[] = {
 
 
 u4 JavaClass::read_u4(char* ptr) {
-    return ((u4)(((u1)ptr[0])) << 24)
-        | ((u4)(((u1)ptr[1])) << 16)
-        | ((u4)(((u1)ptr[2])) << 8)
-        | ((u4)(((u1)ptr[3])));
+    return (((u4)(((u1)ptr[0])) << 24) & 0xFF000000)
+        | (((u4)(((u1)ptr[1])) << 16) & 0x00FF0000)
+        | (((u4)(((u1)ptr[2])) << 8) & 0x0000FF00)
+        | (((u4)(((u1)ptr[3]))) & 0x000000FF);
 }
 
 u2 JavaClass::read_u2(char* ptr) {
-    return ((u2)(((u1)ptr[0])) << 8)
+    return (((u2)(((u1)ptr[0])) << 8) & 0xFF00)
         | ((u2)(((u1)ptr[1])));
 }
 
@@ -118,8 +118,20 @@ bool JavaClass::parse_constant_pool(char*& p) {
 
     for (int i = 1; i < constant_pool_count; i++) {
         constant_pool[i] = (cp_info*)p;
-p;
-        uint32_t size = get_constant_pool_elem_size(p);
+
+        switch (constant_pool[i]->tag) {
+            case CP_Type::CONSTANT_Methodref: {
+                CONSTANT_Methodref_info * ref = (CONSTANT_Methodref_info*)constant_pool[i];
+                std::cout << "Methodref Class idx: " << ref->class_index << ". NameAndType: " << (ref->name_and_type_index & 0xFFFF) << "\n"; 
+
+            }
+            break;
+
+            default:
+                break;
+        }
+
+        int size = get_constant_pool_elem_size(p);
         p += size;
     }
 
@@ -334,7 +346,7 @@ bool JavaClass::string_from_constant_pool(int idx, std::string& val) {
 
 
 
-int JavaClass::get_method_index(std::string name, std::string descriptor) {
+int JavaClass::get_method_index(std::string& name, std::string& descriptor) {
     for (int i = 0; i < methods_count; i++) {
         method_info_extended m = methods[i];
         u2 name_index = m.name_index;

@@ -17,6 +17,9 @@ class ClassHeap {
         JavaClass* get_class(std::string name);
 
     private:
+
+        std::string strip_ending(std::string path);
+
         std::map<std::string, JavaClass*> class_map;
 };
 

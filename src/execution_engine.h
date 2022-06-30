@@ -2,6 +2,7 @@
 #define EXECUTION_ENGINE_H
 
 #include "frame.h"
+#include "class_heap.h"
 
 enum Opcode {
     // Load constants
@@ -31,6 +32,8 @@ enum Opcode {
 
     bipush = 0x10,
 
+    ireturn = 0xac,
+
     ldc = 0x12,
 
     invokestatic = 0xb8,
@@ -41,7 +44,9 @@ enum Opcode {
 
 class ExecutionEngine {
     public:
-        ExecutionEngine() {}
+        ExecutionEngine(ClassHeap* c_heap) {
+            m_class_heap = c_heap;
+        }
         ~ExecutionEngine() {}
 
         u4 execute(Frame* frame);
@@ -52,6 +57,33 @@ class ExecutionEngine {
             class file
         */
         Variable load_constant(JavaClass* class_, u1 index);
+
+        void execute_static_method(Frame* current, u2 idx);
+
+
+        /*
+            Gets an unsigned 16-bit integer from the buffer pointed to
+            by ptr. Assumes that enough memory is available
+        */
+        u2 get_u2(char* ptr);
+        u4 get_u4(char* ptr);
+
+
+        /*
+            Computes the number of parameters from the description of
+            a method.
+        */
+        u2 get_method_parameter(std::string& description);
+
+        /*
+            True if the method that is called returns a value,
+            false otherwise.
+        */
+        bool is_returning(std::string& description);
+
+
+        // Heap object where the classes reside
+        ClassHeap* m_class_heap;
 };
 
 #endif

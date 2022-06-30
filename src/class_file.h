@@ -246,7 +246,13 @@ class JavaClass : public JavaClassFileFormat {
         }
 
         bool parse_class();
-        int get_method_index(std::string name, std::string descriptor);
+        int get_method_index(std::string& name, std::string& descriptor);
+
+        /*
+            Returns a (Utf8) string from the constant pool given the index.
+        */
+        bool string_from_constant_pool(int idx, std::string& val);
+
 
     private:
         // Methods
@@ -264,7 +270,6 @@ class JavaClass : public JavaClassFileFormat {
 
         uint32_t get_constant_pool_elem_size(char* ptr);
 
-        bool string_from_constant_pool(int idx, std::string& val);
 
         // Fields
         std::vector<u1> m_bytecode;

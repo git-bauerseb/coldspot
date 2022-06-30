@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
     ClassHeap heap{};
     heap.add_class("Test.class");
 
-    JavaClass* class_ = heap.get_class("Test.class");
+    JavaClass* class_ = heap.get_class("Test");
 
     Frame frame{};
     frame.class_ = class_;
@@ -16,7 +16,10 @@ int main(int argc, char** argv) {
     frame.stack = new Variable[20];
 
     // Get index of main method
-    int idx = class_->get_method_index("main", "()V");
+    std::string n_main{"main"};
+    std::string n_descr{"()V"};
+
+    int idx = class_->get_method_index(n_main, n_descr);
 
     if (idx < 0) {
         std::cerr << "No main() method specified\n";
@@ -28,7 +31,7 @@ int main(int argc, char** argv) {
     // Reserve space for local variables
     frame.stack_ptr = class_->methods[idx].code->max_locals;
 
-    ExecutionEngine engine{};
+    ExecutionEngine engine{&heap};
     engine.execute(&frame);
 
     delete[] frame.stack;
