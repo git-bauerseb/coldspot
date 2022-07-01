@@ -7,6 +7,7 @@
 
 #include "definitions.h"
 #include "class_reader.h"
+#include "object_heap.h"
 
 /*
     Access flags for fields/methods/classes
@@ -243,6 +244,10 @@ class JavaClass : public JavaClassFileFormat {
                 delete[] methods[i].code->code;
                 delete methods[i].code;
             }
+
+            for(auto& p : static_fields) {
+                delete p.second;
+            }
         }
 
         bool parse_class();
@@ -253,6 +258,9 @@ class JavaClass : public JavaClassFileFormat {
         */
         bool string_from_constant_pool(int idx, std::string& val);
 
+
+        void set_static_value(std::string field_name, Variable val, CP_Type type);
+        Variable* get_static_value(std::string field_name);
 
     private:
         // Methods
@@ -271,8 +279,11 @@ class JavaClass : public JavaClassFileFormat {
         uint32_t get_constant_pool_elem_size(char* ptr);
 
 
+
         // Fields
         std::vector<u1> m_bytecode;
+
+        std::map<std::string, Variable*> static_fields;
 
 };
 

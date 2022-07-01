@@ -365,3 +365,22 @@ int JavaClass::get_method_index(std::string& name, std::string& descriptor) {
 
     return -1;
 }
+
+
+void JavaClass::set_static_value(std::string field_name, Variable val, CP_Type type) {
+    if (static_fields[field_name] == nullptr) {
+        static_fields[field_name] = new Variable();
+    }
+
+    switch (type) {
+        case CP_Type::CONSTANT_Integer:
+            static_fields[field_name]->int_value = val.int_value;
+            break;
+        default:
+            break;
+    }
+}
+
+Variable* JavaClass::get_static_value(std::string field_name) {
+    return static_fields[field_name];
+}

@@ -114,19 +114,40 @@ u4 ExecutionEngine::execute(Frame* frame) {
                 }
                 break;
             case invokestatic: {
+                    u1 idx_1 = byte_code[frame->program_ctr+1];
+                    u1 idx_2 = byte_code[frame->program_ctr+2];
+                    u2 idx = ((idx_1 << 8) | idx_2);
 
-                u1 idx_1 = byte_code[frame->program_ctr+1];
-                u1 idx_2 = byte_code[frame->program_ctr+2];
+                    execute_static_method(frame, idx);
 
-                u2 idx = ((idx_1 << 8) | idx_2);
-
-                execute_static_method(frame, idx);
-
-                frame->program_ctr += 3;
-
+                    frame->program_ctr += 3;
                 }
                 break;
 
+            case putstatic: {
+                    u1 idx_1 = byte_code[frame->program_ctr+1];
+                    u1 idx_2 = byte_code[frame->program_ctr+2];
+                    u2 idx = ((idx_1 << 8) | idx_2);
+                    Variable value = frame->stack[frame->stack_ptr];
+                    frame->stack_ptr--;
+                    store_in_static_field(value, frame, idx);
+                    frame->program_ctr += 3;
+                }
+                break;
+
+            case getstatic: {
+                    u1 idx_1 = byte_code[frame->program_ctr+1];
+                    u1 idx_2 = byte_code[frame->program_ctr+2];
+                    u2 idx = ((idx_1 << 8) | idx_2);
+
+                    Variable field_val = get_from_static_field(frame, idx);
+
+                    frame->stack_ptr++;
+                    frame->stack[frame->stack_ptr] = field_val;
+
+                    frame->program_ctr += 3;
+                }
+                break;
             case ireturn: {
                     return frame->stack[frame->stack_ptr].int_value;
                 }
@@ -167,6 +188,103 @@ Variable ExecutionEngine::load_constant(JavaClass* class_, u1 index) {
     return v;
 }
 
+Variable ExecutionEngine::get_from_static_field(Frame* frame, u2 idx) {
+    char* pool_ptr = (char*)frame->class_->constant_pool[idx];
+
+    if (pool_ptr[0] != CONSTANT_Fieldref) {
+        std::cerr << "Element in constant pool is not of type CONSTANT_Fieldref\n";
+        std::exit(1);
+    }
+
+    u2 class_idx = get_u2(&pool_ptr[1]);
+    u2 name_type_idx = get_u2(&pool_ptr[3]);
+
+    // Class
+    pool_ptr = (char*)frame->class_->constant_pool[class_idx];
+
+    if (pool_ptr[0] != CONSTANT_Class) {
+        std::cerr << "No CONSTANT_Class\n";
+        std::exit(1);
+    }
+
+    std::string c_name;
+
+    u2 class_name_idx = get_u2(&pool_ptr[1]);
+    frame->class_->string_from_constant_pool(class_name_idx, c_name);
+
+    // Name and type
+    pool_ptr = (char*)frame->class_->constant_pool[name_type_idx];
+
+    if (pool_ptr[0] != CONSTANT_NameAndType) {
+        std::cerr << "No NameAndType\n";
+        std::exit(1);
+    }
+
+    u2 name_idx = get_u2(&pool_ptr[1]);
+    u2 descr_idx = get_u2(&pool_ptr[3]);
+
+    std::string f_name;
+    std::string f_descr;
+
+    frame->class_->string_from_constant_pool(name_idx, f_name);
+    frame->class_->string_from_constant_pool(descr_idx, f_descr);
+    
+    CP_Type type = get_constant_elem_type(f_descr);
+
+    JavaClass* virt_class = m_class_heap->get_class(c_name);
+    Variable* val = virt_class->get_static_value(f_name);
+
+    return *val;
+}
+
+void ExecutionEngine::store_in_static_field(Variable value, Frame* frame, u2 idx) {
+    char* pool_ptr = (char*)frame->class_->constant_pool[idx];
+
+    if (pool_ptr[0] != CONSTANT_Fieldref) {
+        std::cerr << "Element in constant pool is not of type CONSTANT_Fieldref\n";
+        std::exit(1);
+    }
+
+    u2 class_idx = get_u2(&pool_ptr[1]);
+    u2 name_type_idx = get_u2(&pool_ptr[3]);
+
+    // Class
+    pool_ptr = (char*)frame->class_->constant_pool[class_idx];
+
+    if (pool_ptr[0] != CONSTANT_Class) {
+        std::cerr << "No CONSTANT_Class\n";
+        std::exit(1);
+    }
+
+    std::string c_name;
+
+    u2 class_name_idx = get_u2(&pool_ptr[1]);
+    frame->class_->string_from_constant_pool(class_name_idx, c_name);
+
+    // Name and type
+    pool_ptr = (char*)frame->class_->constant_pool[name_type_idx];
+
+    if (pool_ptr[0] != CONSTANT_NameAndType) {
+        std::cerr << "No NameAndType\n";
+        std::exit(1);
+    }
+
+    u2 name_idx = get_u2(&pool_ptr[1]);
+    u2 descr_idx = get_u2(&pool_ptr[3]);
+
+    std::string f_name;
+    std::string f_descr;
+
+    frame->class_->string_from_constant_pool(name_idx, f_name);
+    frame->class_->string_from_constant_pool(descr_idx, f_descr);
+    
+    CP_Type type = get_constant_elem_type(f_descr);
+
+    JavaClass* virt_class = m_class_heap->get_class(c_name);
+    virt_class->set_static_value(f_name, value, type);
+
+}
+
 void ExecutionEngine::execute_static_method(Frame* current, u2 idx) {
     JavaClass* c_class = current->class_;
     char* pool_ptr = (char*)c_class->constant_pool[idx];
@@ -194,7 +312,7 @@ void ExecutionEngine::execute_static_method(Frame* current, u2 idx) {
 
     std::string class_name;
     c_class->string_from_constant_pool(class_name_idx, class_name);
-    // std::cout << class_name << "\n";
+    std::cout << class_name_idx << "\n";
 
     // Get NameAndType
     pool_ptr = (char*)c_class->constant_pool[name_idx];
@@ -261,4 +379,15 @@ bool ExecutionEngine::is_returning(std::string& description) {
     while (description[i] != ')') {i++;}
 
     return description[i] != 'V'; 
+}
+
+
+CP_Type ExecutionEngine::get_constant_elem_type(std::string& descr) {
+    switch (descr[0]) {
+        case 'I':
+            return CP_Type::CONSTANT_Integer;
+        default:
+            std::cerr << "Error, invalid type\n";
+            std::exit(1);
+    }
 }

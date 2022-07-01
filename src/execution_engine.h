@@ -38,6 +38,9 @@ enum Opcode {
 
     invokestatic = 0xb8,
 
+    putstatic = 0xb3,
+    getstatic = 0xb2,
+
     return_ = 0xb1
 };
 
@@ -59,7 +62,15 @@ class ExecutionEngine {
         Variable load_constant(JavaClass* class_, u1 index);
 
         void execute_static_method(Frame* current, u2 idx);
+        
+        void store_in_static_field(Variable var, Frame* frame, u2 idx);
+        Variable get_from_static_field(Frame* frame, u2 idx);
 
+        /*
+            Returns the type of an element of the constant pool
+            given its descriptor.
+        */
+        CP_Type get_constant_elem_type(std::string& descr);
 
         /*
             Gets an unsigned 16-bit integer from the buffer pointed to
