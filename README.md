@@ -8,6 +8,45 @@ The most time-consuming part was writing a class loader that correctly reads in 
 
 This will change in the future, when i find the time to implement (some) missing components.
 
+
+![JVM Internals](imgs/jvm_internals.png)
+
+
+## Object Management
+
+When objects are created, then space is allocated in the ```ObjectHeap``` and a reference to
+this allocated space is returned in form of ```Object```. The reserved memory in the ```ObjectHeap``` represents the fields
+of the object, where the first field points to the class from which the object is constructed.
+
+The ```Object``` struct is lightweight and therefore copying them around in the JVM is not
+very expensive (although better approaches exist).
+
+```c++
+struct Object {
+    void* heap_ptr;
+    u1 type;
+};
+```
+
+## Stack
+
+The stack is an array of ```Variable``` unions. The variable union has the form:
+
+```c++
+union Variable {
+    u1 char_value;
+    u2 short_value;
+    u4 int_value;
+    f4 float_value;
+    
+    void* ptrValue;
+    Object object;
+};
+```
+
+Depending on the type of the variable, the respective elements of the union is set or retrieved.
+
+
 ## Usage
 
 ```
