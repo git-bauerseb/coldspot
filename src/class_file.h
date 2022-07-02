@@ -7,7 +7,6 @@
 
 #include "definitions.h"
 #include "class_reader.h"
-#include "object_heap.h"
 
 /*
     Access flags for fields/methods/classes

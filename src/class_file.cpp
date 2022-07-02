@@ -382,5 +382,11 @@ void JavaClass::set_static_value(std::string field_name, Variable val, CP_Type t
 }
 
 Variable* JavaClass::get_static_value(std::string field_name) {
+
+    if (static_fields[field_name] == nullptr) {
+        static_fields[field_name] = new Variable();
+        static_fields[field_name]->int_value = 0;
+    }
+
     return static_fields[field_name];
 }

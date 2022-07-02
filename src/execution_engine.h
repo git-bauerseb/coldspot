@@ -4,6 +4,20 @@
 #include "frame.h"
 #include "class_heap.h"
 
+#define IF_ICMP(comp) u4 second = frame->stack[frame->stack_ptr--].int_value; \
+                      u4 first = frame->stack[frame->stack_ptr--].int_value; \
+                      i2 addr = get_i2((char*)&byte_code[frame->program_ctr+1]); \
+                       if (first comp second) { \
+                            frame->program_ctr += addr; \
+                        } else { \
+                            frame->program_ctr += 3; \
+                        } \
+
+/*
+    Bytecode
+        In Use (2012): 202/256
+        Implemented: 33/202
+*/
 enum Opcode {
     // Load constants
     nop = 0x0,
@@ -36,12 +50,67 @@ enum Opcode {
 
     ldc = 0x12,
 
+    /*
+        If first >= second, then add 
+            (b1 << 8) | b2
+        to pc.
+    */
+    if_icmpge = 0xa2,
+
+    /*
+        If first > second, then add
+            (b1 << 8) | b2
+        to pc.
+    */
+    if_icmpgt = 0xa3,
+
+    if_icmple = 0xa4,
+    if_icmplt = 0xa1,
+    if_icmpne = 0xa0,
+
+    /*
+        Increment local variable at index b1 by (signed) b2 
+    */
+    iinc = 0x84,
+
+    /*
+        Goto another instruction given by
+        b1 << 8 | b2
+    */
+    goto_ = 0xa7,
+
     invokestatic = 0xb8,
+    invokespecial = 0xb7,
 
     putstatic = 0xb3,
     getstatic = 0xb2,
 
-    return_ = 0xb1
+    return_ = 0xb1,
+
+
+    new_ = 0xbb,
+
+    /*
+        Duplicate the topmost stack element
+    */
+    dup = 0x59,
+
+    /*
+        Push object reference from local variable 0 onto stack.
+    */
+    aload_0 = 0x2a,
+    aload_1 = 0x2b,
+    aload_2 = 0x2c,
+    aload_3 = 0x2d,
+
+    astore_0 = 0x4b,
+    astore_1 = 0x4c,
+    astore_2 = 0x4d,
+    astore_3 = 0x4e,
+
+
+    putfield = 0xb5,
+    getfield = 0xb4
 };
 
 
@@ -61,8 +130,24 @@ class ExecutionEngine {
         */
         Variable load_constant(JavaClass* class_, u1 index);
 
-        void execute_static_method(Frame* current, u2 idx);
+        /*
+            Executes the invokestatic instruction which calls a static method.
+        */
+        void execute_invokestatic(Frame* current, u2 idx);
+
+        /*
+            Executes the invokespecial instruction which calls an instance method
+            that is specified in the constant pool by idx of the specified object.
+        */
+       void execute_invokespecial(Frame* current, Object obj, u2 idx);
         
+        /*
+            Creates a new object from the class pointed to in the constant pool
+            and stores it in the object heap. Returns a reference for the newly
+            created object.
+        */
+        Variable create_new_object(Frame* frame, u2 class_idx);
+
         void store_in_static_field(Variable var, Frame* frame, u2 idx);
         Variable get_from_static_field(Frame* frame, u2 idx);
 
@@ -78,6 +163,8 @@ class ExecutionEngine {
         */
         u2 get_u2(char* ptr);
         u4 get_u4(char* ptr);
+
+        i2 get_i2(char* ptr);
 
 
         /*
@@ -95,6 +182,15 @@ class ExecutionEngine {
 
         // Heap object where the classes reside
         ClassHeap* m_class_heap;
+
+        ObjectHeap m_object_heap;
+
+        /*
+            An object representing the current object.
+            If the method that is currently executed is static,
+            then this represents no valid object.
+        */
+        Object m_object;
 };
 
 #endif
