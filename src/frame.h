@@ -15,7 +15,11 @@ class Frame {
 
         JavaClass* class_;
 
-        // Stack pointer in the stack
+        /*
+            Stack pointer to the current frame stack.
+            Points to the next position in the stack, that is
+            stack[stack_ptr] == FREE
+        */
         i2 stack_ptr;
 
         // Program counter
@@ -28,6 +32,23 @@ class Frame {
             stack = NULL;
             method = NULL;
         }
+
+        /* Push (arbitrary) variable onto stack. */
+        void push_v(Variable var);
+        Variable pop_v();
+
+        /* Push integer onto stack. */
+        void push_i(int value);
+        /* Pop integer value from stack */
+        int pop_i();
+
+        /* Push short value onto stack. */
+        void push_s(short value);
+        short pop_s();
+
+        /* Push reference to object onto stack. */
+        void push_ref(Object obj);
+        Object pop_ref();
 };
 
 #endif

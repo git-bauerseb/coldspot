@@ -21,16 +21,6 @@ u4 ExecutionEngine::execute(Frame* frame) {
     u1* byte_code = frame->method->code->code;
 
     while (1) {
-
-        /*
-        std::cout << "STACK CONTENT\n";
-        for (int i = 0; i < 5; i++) {
-            std::cout << frame->stack[i].int_value << "\n";
-        }
-
-        std::cout << "\n";
-        */
-
         switch (byte_code[frame->program_ctr]) {
             // Push constant 0 on stack
             case nop:
@@ -42,9 +32,8 @@ u4 ExecutionEngine::execute(Frame* frame) {
             case iconst_3:
             case iconst_4:
             case iconst_5: {
-                    frame->stack_ptr++;
                     u4 val = ((u1)(byte_code[frame->program_ctr]) - (u1)iconst_0);
-                    frame->stack[frame->stack_ptr].int_value = val;
+                    frame->push_i(val);
                     frame->program_ctr++;
                 }
                 break;
@@ -54,15 +43,13 @@ u4 ExecutionEngine::execute(Frame* frame) {
             case istore_2:
             case istore_3: {
                     u1 idx = byte_code[frame->program_ctr] - istore_0;
-                    frame->stack[idx].int_value = frame->stack[frame->stack_ptr].int_value;
-                    frame->stack_ptr--;
+                    frame->stack[idx].int_value = frame->pop_i();
                     frame->program_ctr++;
                 }
                 break;
             case istore: {
                     u1 idx = byte_code[frame->program_ctr+1];
-                    frame->stack[idx].int_value = frame->stack[frame->stack_ptr].int_value;
-                    frame->stack_ptr--;
+                    frame->stack[idx].int_value = frame->pop_i();
                     frame->program_ctr += 2;
                 }
                 break;
@@ -71,49 +58,30 @@ u4 ExecutionEngine::execute(Frame* frame) {
             case iload_2:
             case iload_3: {
                     u1 idx = byte_code[frame->program_ctr] - iload_0;
-                    frame->stack_ptr++;
-                    frame->stack[frame->stack_ptr] = frame->stack[idx];
+                    frame->push_i(frame->stack[idx].int_value);
                     frame->program_ctr++; 
                 }
                 break;
-            case imul: {
-                    u4 second = frame->stack[frame->stack_ptr].int_value;
-                    u4 first = frame->stack[frame->stack_ptr-1].int_value;
-                    frame->stack[frame->stack_ptr-1].int_value = first * second;
-                    frame->program_ctr++;
-                    frame->stack_ptr--;
-                }
-                break;
-
-            case iadd: {
-                    u4 second = frame->stack[frame->stack_ptr].int_value;
-                    u4 first = frame->stack[frame->stack_ptr-1].int_value;
-                    frame->stack[frame->stack_ptr-1].int_value = first + second;
-                    frame->program_ctr++;
-                    frame->stack_ptr--;
-                }
-                break;
-            case isub: {
-                    u4 second = frame->stack[frame->stack_ptr].int_value;
-                    u4 first = frame->stack[frame->stack_ptr-1].int_value;
-                    frame->stack[frame->stack_ptr-1].int_value = first - second;
-                    frame->program_ctr++;
-                    frame->stack_ptr--;
-                }
-                break;
+            case imul: {I_OP(*)} break;
+            case idiv: {I_OP(/)} break;
+            case iadd: {I_OP(+)} break;
+            case isub: {I_OP(-)} break;
             case bipush: {
                     u1 byte = byte_code[frame->program_ctr+1];
-                    frame->stack_ptr++;
-                    frame->stack[frame->stack_ptr].int_value = byte;
+                    frame->push_i(byte);
                     frame->program_ctr += 2;
                 }
                 break;
-
+            case sipush: {
+                    i2 short_val = get_u2((char*)&byte_code[frame->program_ctr+1]);
+                    frame->push_s(short_val);
+                    frame->program_ctr += 3;
+                }
+                break;
             case ldc: {
                     u1 idx = byte_code[frame->program_ctr+1];
                     Variable const_ = load_constant(frame->class_, idx);
-                    frame->stack_ptr++;
-                    frame->stack[frame->stack_ptr] = const_;
+                    frame->push_v(const_);
                     frame->program_ctr += 2;
                 }
                 break;
@@ -126,7 +94,7 @@ u4 ExecutionEngine::execute(Frame* frame) {
 
             case invokespecial: {
                     // Top of stack is an object reference
-                    Object obj = frame->stack[frame->stack_ptr].object;
+                    Object obj = frame->pop_ref();
                     u2 idx = get_u2((char*)&byte_code[frame->program_ctr+1]);
                     execute_invokespecial(frame, obj, idx);
                     frame->program_ctr += 3;
@@ -134,8 +102,7 @@ u4 ExecutionEngine::execute(Frame* frame) {
                 break;
             case putstatic: {
                     u2 idx = get_u2((char*)&byte_code[frame->program_ctr+1]);
-                    Variable value = frame->stack[frame->stack_ptr];
-                    frame->stack_ptr--;
+                    Variable value = frame->pop_v();
                     store_in_static_field(value, frame, idx);
                     frame->program_ctr += 3;
                 }
@@ -168,30 +135,26 @@ u4 ExecutionEngine::execute(Frame* frame) {
             case new_: {
                     u2 class_idx = get_u2((char*)&byte_code[frame->program_ctr+1]);
                     Variable var = create_new_object(frame, class_idx);
-                    frame->stack_ptr++;
-                    frame->stack[frame->stack_ptr] = var;
-
+                    frame->push_v(var);
                     frame->program_ctr += 3;
                 }
                 break;
             case dup: {
-                    frame->stack_ptr++;
-                    frame->stack[frame->stack_ptr] = frame->stack[frame->stack_ptr-1];
+                    Variable v = frame->pop_v();
+                    frame->push_v(v);
+                    frame->push_v(v);
                     frame->program_ctr++;
                 }
                 break;
             case getstatic: {
                     u2 idx = get_u2((char*)&byte_code[frame->program_ctr+1]);
                     Variable field_val = get_from_static_field(frame, idx);
-
-                    frame->stack_ptr++;
-                    frame->stack[frame->stack_ptr] = field_val;
-
+                    frame->push_v(field_val);
                     frame->program_ctr += 3;
                 }
                 break;
             case ireturn: {
-                    return frame->stack[frame->stack_ptr].int_value;
+                    return frame->pop_i();
                 }
                 break;
             case aload_0:
@@ -199,8 +162,7 @@ u4 ExecutionEngine::execute(Frame* frame) {
             case aload_2:
             case aload_3: {
                     u2 idx = byte_code[frame->program_ctr] - aload_0;
-                    frame->stack_ptr++;
-                    frame->stack[frame->stack_ptr].object = frame->stack[idx].object;
+                    frame->push_ref(frame->stack[idx].object);
                     frame->program_ctr += 1;
                 }
                 break;
@@ -209,13 +171,32 @@ u4 ExecutionEngine::execute(Frame* frame) {
             case astore_2:
             case astore_3: {
                     u2 idx = byte_code[frame->program_ctr] - astore_0;
-                    frame->stack[idx].object = frame->stack[frame->stack_ptr].object;
-                    frame->stack_ptr -= 1;
+                    frame->stack[idx].object = frame->pop_ref();
                     frame->program_ctr += 1;
                 }
                 break;
+            case putfield: {
+                    // Index of field
+                    u2 idx = get_u2((char*)&byte_code[frame->program_ctr+1]);
+
+                    // Variable is on top
+                    Variable var = frame->pop_v();
+                    Object obj = frame->pop_ref();
+                    execute_putfield(frame, obj, var, idx);
+
+                    frame->program_ctr += 3;
+                }
+                break;
+            case getfield: {
+                    u2 idx = get_u2((char*)&byte_code[frame->program_ctr+1]);
+                    Object obj = frame->pop_ref();
+                    Variable var = execute_getfield(frame, obj, idx);
+                    frame->push_v(var);
+                    frame->program_ctr += 3;
+                }
+                break;
             case  return_:
-                std::cout << "Top of stack " << frame->stack[frame->stack_ptr+1].int_value << "\n";
+                std::cout << "Top of stack " << frame->stack[frame->stack_ptr-1].int_value << "\n";
                 return 0;
             default:
                 std::cerr << "Unknown bytecode instruction\n";
@@ -465,7 +446,7 @@ void ExecutionEngine::execute_invokestatic(Frame* current, u2 idx) {
 
     std::string class_name;
     c_class->string_from_constant_pool(class_name_idx, class_name);
-    std::cout << class_name_idx << "\n";
+    // std::cout << class_name_idx << "\n";
 
     // Get NameAndType
     pool_ptr = (char*)c_class->constant_pool[name_idx];
@@ -496,12 +477,13 @@ void ExecutionEngine::execute_invokestatic(Frame* current, u2 idx) {
     frame->method = &v_class->methods[idx_];
 
     // Reserve space for locals + arguments
-    u2 reserve = v_class->methods[idx_].code->max_locals + parameters;
-    frame->stack_ptr = reserve;
+    u2 max_locals = v_class->methods[idx_].code->max_locals;
+    u2 reserve = max_locals;
+    frame->stack_ptr = 0;
 
-    // Push arguments onto stack
+    // Push arguments onto stack of new frame
     for (int i = 0; i < parameters; i++) {
-        frame->stack[i] = current->stack[current->stack_ptr-i];
+        frame->push_v(current->pop_v());
     }
 
     u4 ret_value = this->execute(frame);
@@ -510,7 +492,7 @@ void ExecutionEngine::execute_invokestatic(Frame* current, u2 idx) {
     delete[] frame;
 
     if (ret_value) {
-        current->stack[current->stack_ptr].int_value = ret_value;
+        current->push_i(ret_value);
     }
 }
 
@@ -566,4 +548,62 @@ Variable ExecutionEngine::create_new_object(Frame* frame, u2 class_idx) {
     Variable v;
     v.object = obj;
     return v;
+}
+
+void ExecutionEngine::execute_putfield(Frame* frame, Object obj, Variable var, u2 field_idx) {
+    Variable* fields = (Variable*)m_object_heap.derference_object(obj);
+    JavaClass* class_ = (JavaClass*)fields[0].ptrValue;
+
+    if (class_->magic != 0xCAFEBABE) {
+        std::cerr << "Error execute_putfield()\n";
+        std::exit(1);
+    }
+
+    char* pool_ptr = (char*)frame->class_->constant_pool[field_idx];
+
+    if (pool_ptr[0] != CONSTANT_Fieldref) {
+        std::cerr << "Error in execute_putfield(), constant_pool access\n";
+        std::exit(1);
+    }
+
+    u2 name_type_idx = get_u2(&pool_ptr[3]);
+    pool_ptr = (char*)frame->class_->constant_pool[name_type_idx];
+
+    u2 field_name_idx = get_u2(&pool_ptr[1]);
+
+    std::string f_name;
+    frame->class_->string_from_constant_pool(field_name_idx, f_name);
+
+    field_idx = class_->get_field_index(f_name);
+
+    fields[field_idx] = var;
+}
+
+Variable ExecutionEngine::execute_getfield(Frame* frame, Object obj, u2 field_idx) {
+    Variable* fields = (Variable*)m_object_heap.derference_object(obj);
+    JavaClass* class_ = (JavaClass*)fields[0].ptrValue;
+
+    if (class_->magic != 0xCAFEBABE) {
+        std::cerr << "Error execute_getfield()\n";
+        std::exit(1);
+    }
+
+    char* pool_ptr = (char*)frame->class_->constant_pool[field_idx];
+
+    if (pool_ptr[0] != CONSTANT_Fieldref) {
+        std::cerr << "Error in execute_putfield(), constant_pool access\n";
+        std::exit(1);
+    }
+
+    u2 name_type_idx = get_u2(&pool_ptr[3]);
+    pool_ptr = (char*)frame->class_->constant_pool[name_type_idx];
+
+    u2 field_name_idx = get_u2(&pool_ptr[1]);
+
+    std::string f_name;
+    frame->class_->string_from_constant_pool(field_name_idx, f_name);
+
+    field_idx = class_->get_field_index(f_name);
+
+    return fields[field_idx];
 }

@@ -253,13 +253,16 @@ class JavaClass : public JavaClassFileFormat {
         int get_method_index(std::string& name, std::string& descriptor);
 
         /*
-            Returns a (Utf8) string from the constant pool given the index.
+            Returns a(n) (Utf8) string from the constant pool given the index
+            and save in val reference.
         */
         bool string_from_constant_pool(int idx, std::string& val);
 
 
         void set_static_value(std::string field_name, Variable val, CP_Type type);
         Variable* get_static_value(std::string field_name);
+
+        u4 get_field_index(std::string& field_name);
 
     private:
         // Methods
@@ -281,8 +284,14 @@ class JavaClass : public JavaClassFileFormat {
 
         // Fields
         std::vector<u1> m_bytecode;
-
         std::map<std::string, Variable*> static_fields;
+
+        /*
+            Given a name of a field, returns the index in the field array on
+            the object heap. If the field is looked up for the first time, the
+            next free spot is assigned to this field
+        */
+        std::map<std::string, u4> m_field_idx_map;
 
 };
 

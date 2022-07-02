@@ -13,6 +13,12 @@
                             frame->program_ctr += 3; \
                         } \
 
+
+#define I_OP(op) int first = frame->pop_i(); \
+                int second = frame->pop_i(); \
+                frame->push_i(first op second); \
+                frame->program_ctr++;
+
 /*
     Bytecode
         In Use (2012): 202/256
@@ -41,10 +47,15 @@ enum Opcode {
     iload_3 = 0x1d,
 
     imul = 0x68,
+    idiv = 0x6c,
     iadd = 0x60,
     isub = 0x64,
 
+    // Push byte value on stack
     bipush = 0x10,
+
+    // Push short value on stack
+    sipush = 0x11,
 
     ireturn = 0xac,
 
@@ -124,6 +135,7 @@ class ExecutionEngine {
         u4 execute(Frame* frame);
 
     private:
+
         /*
             Loads a constant from the constant_pool of the respective
             class file
@@ -139,8 +151,11 @@ class ExecutionEngine {
             Executes the invokespecial instruction which calls an instance method
             that is specified in the constant pool by idx of the specified object.
         */
-       void execute_invokespecial(Frame* current, Object obj, u2 idx);
+        void execute_invokespecial(Frame* current, Object obj, u2 idx);
         
+        void execute_putfield(Frame* frame, Object obj, Variable var, u2 field_idx);
+        Variable execute_getfield(Frame* frame, Object obj, u2 field_idx);
+
         /*
             Creates a new object from the class pointed to in the constant pool
             and stores it in the object heap. Returns a reference for the newly

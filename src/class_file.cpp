@@ -390,3 +390,14 @@ Variable* JavaClass::get_static_value(std::string field_name) {
 
     return static_fields[field_name];
 }
+
+
+u4 JavaClass::get_field_index(std::string& field_name) {
+    if (m_field_idx_map.count(field_name) == 0) {
+        // The offset "1" is required because in the field array of the object
+        // on the heap a reference to the class is saved
+        m_field_idx_map[field_name] = 1 + m_field_idx_map.size();
+    }
+
+    return m_field_idx_map[field_name];
+}
