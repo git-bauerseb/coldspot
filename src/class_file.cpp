@@ -1,4 +1,4 @@
-#include "class_file.h"
+#include "../include/class_file.h"
 
 static const char* CP_Name[] = {
     "",

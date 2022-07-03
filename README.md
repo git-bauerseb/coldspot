@@ -59,23 +59,29 @@ As an example you can use the class file defined by **Test.java**:
 ```
 public class Test {
 
-    int some_field;
+	public int someField = 21;
 
-    public static void main() {
-        int a = 2;
-        int b = 2 * a;
-        int c = a + b;
-        int d =  a * b * c;
-        int e = d - 6;          // 42
-    }
+	public static void main() {
+		int val = 0;
 
-    static int mul(int a, int b) {
-        return a * b;
-    }
+		for (int i = 0; i < 1000; i++) {
+			val += i;
+		}
 
-    static int add(int c, int d) {
-        return c + d;
-    }
+		int a = div(val, inc(inc(123)));
+	}
+
+	public static int someFunc() {
+		return 238293;
+	}
+
+	public static int inc(int a) {
+		return a + 1;
+	}
+
+	public static int div(int a, int b) {
+		return a / b;
+	}
 }
 ```
 
@@ -84,10 +90,14 @@ which yields:
 ```
 $ javac Test.java
 $ /bin/main Test.class
-Size of constant pool 18
+Size of constant pool 29
+Methodref Class idx: 7. NameAndType: 2328
+Methodref Class idx: 6. NameAndType: 2586
+Methodref Class idx: 6. NameAndType: 795
 Method name <init>
 Method name main
-Method name mul
-Method name add
-Top of stack 42
+Method name someFunc
+Method name inc
+Method name div
+Top of stack 3996
 ```

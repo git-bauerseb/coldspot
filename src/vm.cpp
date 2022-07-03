@@ -1,13 +1,27 @@
-#include "class_heap.h"
-#include "frame.h"
-#include "execution_engine.h"
+#include "../include/class_heap.h"
+#include "../include/frame.h"
+#include "../include/execution_engine.h"
+
+void read_in_classfiles(ClassHeap& c_heap, int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        c_heap.add_class(argv[i]);
+    }
+}
 
 int main(int argc, char** argv) {
-
     ClassHeap heap{};
-    heap.add_class("Test.class");
 
-    JavaClass* class_ = heap.get_class("Test");
+    read_in_classfiles(heap, argc, argv);
+
+    std::string n_main{"main"};
+    std::string n_descr{"()V"};
+
+    JavaClass* class_ = heap.get_class_with_method(n_main, n_descr);
+
+    if (class_ == nullptr) {
+        std::cerr << "No class with main() method specified.\n";
+        std::exit(1);
+    }
 
     Frame frame{};
     frame.class_ = class_;
@@ -16,8 +30,6 @@ int main(int argc, char** argv) {
     frame.stack = new Variable[20];
 
     // Get index of main method
-    std::string n_main{"main"};
-    std::string n_descr{"()V"};
 
     int idx = class_->get_method_index(n_main, n_descr);
 

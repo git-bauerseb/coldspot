@@ -4,8 +4,8 @@
 #include "frame.h"
 #include "class_heap.h"
 
-#define IF_ICMP(comp) u4 second = frame->stack[frame->stack_ptr--].int_value; \
-                      u4 first = frame->stack[frame->stack_ptr--].int_value; \
+#define IF_ICMP(comp) int first = frame->pop_i(); \
+                      int second = frame->pop_i(); \
                       i2 addr = get_i2((char*)&byte_code[frame->program_ctr+1]); \
                        if (first comp second) { \
                             frame->program_ctr += addr; \

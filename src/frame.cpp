@@ -1,4 +1,4 @@
-#include "frame.h"
+#include "../include/frame.h"
 
 void Frame::push_i(int value) {
     stack[stack_ptr].int_value = value;

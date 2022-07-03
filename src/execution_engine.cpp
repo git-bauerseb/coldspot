@@ -1,4 +1,4 @@
-#include "execution_engine.h"
+#include "../include/execution_engine.h"
 
 u2 ExecutionEngine::get_u2(char* ptr) {
     return (u2)((u1)(ptr)[0]<< 8 & 0x0000FF00 
@@ -108,7 +108,15 @@ u4 ExecutionEngine::execute(Frame* frame) {
                 }
                 break;
 
-            case if_icmpge: {IF_ICMP(>=)}
+            case if_icmpge: {
+                    int second = frame->pop_i();
+                      int first = frame->pop_i();
+                      i2 addr = get_i2((char*)&byte_code[frame->program_ctr+1]);
+                       if (first >= second) {
+                            frame->program_ctr += addr;                        } else { \
+                            frame->program_ctr += 3;
+                        }
+                }
                 break;
             case if_icmpgt: {IF_ICMP(>)}
                 break;
@@ -377,8 +385,9 @@ void ExecutionEngine::execute_invokespecial(Frame* current, Object obj, u2 metho
     std::string method_name;
     std::string method_descr;
 
-    class_->string_from_constant_pool(method_name_idx, method_name);
-    class_->string_from_constant_pool(descriptor_idx, method_descr);
+    // Get strings from current class
+    current->class_->string_from_constant_pool(method_name_idx, method_name);
+    current->class_->string_from_constant_pool(descriptor_idx, method_descr);
 
     u2 parameters = get_method_parameter(method_descr) + 1;
     bool returning = is_returning(method_descr);
@@ -393,11 +402,11 @@ void ExecutionEngine::execute_invokespecial(Frame* current, Object obj, u2 metho
     m_object = obj;
 
     // Get Method
-    u2 idx_ = class_->get_method_index(method_name, method_descr);
+    u2 idx_ = current->class_->get_method_index(method_name, method_descr);
     frame->method = &class_->methods[idx_];
 
     // Reserve space for locals + arguments
-    u2 reserve = class_->methods[idx_].code->max_locals + parameters;
+    u2 reserve = current->class_->methods[idx_].code->max_locals + parameters;
     frame->stack_ptr = reserve;
 
     // Push arguments onto stack

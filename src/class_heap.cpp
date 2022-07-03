@@ -1,6 +1,4 @@
-#include "class_heap.h"
-
-
+#include "../include/class_heap.h"
 
 ClassHeap::ClassHeap() {}
 ClassHeap::~ClassHeap() {
@@ -39,4 +37,16 @@ std::string ClassHeap::strip_ending(std::string path) {
     }
 
     return path.substr(0, to);
+}
+
+JavaClass* ClassHeap::get_class_with_method(std::string& name, std::string& descr) {
+    for(auto& p : class_map) {
+        int idx = p.second->get_method_index(name, descr);
+    
+        if (idx >= 0) {
+            return p.second;
+        }
+    }
+
+    return nullptr;
 }

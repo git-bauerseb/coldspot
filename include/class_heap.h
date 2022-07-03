@@ -16,10 +16,11 @@ class ClassHeap {
         void add_class(std::string name);
         JavaClass* get_class(std::string name);
 
+        JavaClass* get_class_with_method(std::string& name, std::string& descr);
+
     private:
 
         std::string strip_ending(std::string path);
-
         std::map<std::string, JavaClass*> class_map;
 };
 

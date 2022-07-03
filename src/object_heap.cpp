@@ -1,4 +1,4 @@
-#include "object_heap.h"
+#include "../include/object_heap.h"
 
 ObjectHeap::ObjectHeap() {
     m_object_id = 42;

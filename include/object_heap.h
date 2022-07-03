@@ -7,9 +7,6 @@
 #include "definitions.h"
 #include "class_file.h"
 
-
-
-
 class ObjectHeap {
     public:
         ObjectHeap();
