@@ -15,6 +15,9 @@ class ObjectHeap {
         Object create_object(JavaClass* class_);
         void* derference_object(Object object);
 
+        Object create_primitive_array(int size, u1 type);
+
+        void debug_print_primitive_array(Object obj);
 
     private:
         std::map<void*, void*> m_object_map;

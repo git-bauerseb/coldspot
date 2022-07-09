@@ -121,7 +121,17 @@ enum Opcode {
 
 
     putfield = 0xb5,
-    getfield = 0xb4
+    getfield = 0xb4,
+    newarray = 0xbc,
+    anewarray = 0xbd,
+
+    /*
+        Store int into an array
+    */
+    iastore = 0x4f,
+    iaload = 0x2e,
+
+    arraylength = 0xbe
 };
 
 
@@ -155,6 +165,8 @@ class ExecutionEngine {
         
         void execute_putfield(Frame* frame, Object obj, Variable var, u2 field_idx);
         Variable execute_getfield(Frame* frame, Object obj, u2 field_idx);
+
+        Object execute_newarray(Frame* frame, int size, u1 type);
 
         /*
             Creates a new object from the class pointed to in the constant pool

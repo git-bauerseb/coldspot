@@ -203,6 +203,61 @@ u4 ExecutionEngine::execute(Frame* frame) {
                     frame->program_ctr += 3;
                 }
                 break;
+            case newarray: {
+                    int size = frame->pop_i();
+                    u1 type = byte_code[frame->program_ctr+1];
+                    frame->push_ref(execute_newarray(frame, size, type));
+
+                    frame->program_ctr += 2;
+                }
+                break;
+            case anewarray: {
+                    // Size of new array is pushed on stack
+                    int size = frame->pop_i();
+                    u2 obj_type_idx = get_u2((char*)&byte_code[frame->program_ctr+1]);
+                    frame->program_ctr += 3;
+                }
+                break;
+            case iastore: {
+                    int val = frame->pop_i();
+                    int idx = frame->pop_i();
+
+                    // Reference to array
+                    Object a_ref = frame->pop_ref();
+
+
+                    Variable* elements = (Variable*)m_object_heap.derference_object(a_ref);
+                    elements[idx+2].int_value = val;
+
+                    m_object_heap.debug_print_primitive_array(a_ref);
+
+
+                    frame->program_ctr += 1;
+                }
+                break;
+            case iaload: {
+                    int idx = frame->pop_i();
+                    Object a_ref = frame->pop_ref();
+
+
+
+                    Variable* elements = (Variable*)m_object_heap.derference_object(a_ref);
+                    frame->push_i(elements[idx+2].int_value);
+
+                    frame->program_ctr += 1;
+                }
+                break;
+            case arraylength: {
+                    Object a_ref = frame->pop_ref();
+
+                    Variable* elements = (Variable*)m_object_heap.derference_object(a_ref);
+                    
+                    // Push size onto stack
+                    frame->push_i(elements[1].int_value);
+
+                    frame->program_ctr += 1;
+                }
+                break;
             case  return_:
                 std::cout << "Top of stack " << frame->stack[frame->stack_ptr-1].int_value << "\n";
                 return 0;
@@ -615,4 +670,9 @@ Variable ExecutionEngine::execute_getfield(Frame* frame, Object obj, u2 field_id
     field_idx = class_->get_field_index(f_name);
 
     return fields[field_idx];
+}
+
+Object ExecutionEngine::execute_newarray(Frame* frame, int size, u1 type) {
+    Object obj = m_object_heap.create_primitive_array(size, type);
+    return obj;
 }
